@@ -15,6 +15,11 @@ export class Player {
   dead = false;
   hasShield = false;
   speedBoost = 0;
+  private coyoteTime = 0;
+  private jumpBuffer = 0;
+
+  private static readonly COYOTE_DURATION = 0.08;
+  private static readonly JUMP_BUFFER_DURATION = 0.12;
 
   constructor(startX: number, startY: number) {
     this.x = startX;
@@ -37,9 +42,17 @@ export class Player {
     else this.vx = 0;
 
     // Jump - uses buffered input for reliable detection
-    if (input.jumpPressed && this.onGround) {
+    if (input.jumpPressed) {
+      this.jumpBuffer = Player.JUMP_BUFFER_DURATION;
+    }
+    this.jumpBuffer -= dt;
+
+    const canJump = this.onGround || this.coyoteTime > 0;
+    if (this.jumpBuffer > 0 && canJump) {
       this.vy = PLAYER_JUMP;
       this.onGround = false;
+      this.coyoteTime = 0;
+      this.jumpBuffer = 0;
     }
     // Variable jump height - cut jump short if released early
     if (!input.jumpHeld && this.vy < PLAYER_JUMP_CUT) {
@@ -112,6 +125,7 @@ export class Player {
     const startRow = Math.floor(r.y / tileSize);
     const endRow = Math.floor((r.y + r.h - 1) / tileSize);
 
+    const wasOnGround = this.onGround;
     this.onGround = false;
     for (let row = startRow; row <= endRow; row++) {
       for (let col = startCol; col <= endCol; col++) {
@@ -132,6 +146,14 @@ export class Player {
           }
         }
       }
+    }
+
+    if (this.onGround) {
+      this.coyoteTime = Player.COYOTE_DURATION;
+    } else if (wasOnGround) {
+      // just left ground - start coyote timer (already set above)
+    } else {
+      this.coyoteTime -= 1 / 60; // approximate dt
     }
   }
 

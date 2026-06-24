@@ -15,7 +15,6 @@ export class Player {
   dead = false;
   hasShield = false;
   speedBoost = 0;
-  private wasJumpPressed = false;
 
   constructor(startX: number, startY: number) {
     this.x = startX;
@@ -37,16 +36,15 @@ export class Player {
     else if (input.left) this.vx = -speed;
     else this.vx = 0;
 
-    // Jump
-    if (input.jump && this.onGround && !this.wasJumpPressed) {
+    // Jump - uses buffered input for reliable detection
+    if (input.jumpPressed && this.onGround) {
       this.vy = PLAYER_JUMP;
       this.onGround = false;
     }
     // Variable jump height - cut jump short if released early
-    if (!input.jump && this.vy < PLAYER_JUMP_CUT) {
+    if (!input.jumpHeld && this.vy < PLAYER_JUMP_CUT) {
       this.vy = PLAYER_JUMP_CUT;
     }
-    this.wasJumpPressed = input.jump;
 
     // Slide
     if (input.slide && this.onGround && !this.sliding) {

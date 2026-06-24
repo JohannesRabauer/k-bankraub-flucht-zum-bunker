@@ -1,4 +1,5 @@
 import { Input } from './input';
+import { setupTouchControls } from './touch';
 import { Player } from './player';
 import { Police } from './police';
 import { Camera } from './camera';
@@ -24,6 +25,7 @@ export class Game {
     canvas.width = CANVAS_W;
     canvas.height = CANVAS_H;
     this.input = new Input();
+    setupTouchControls(this.input);
     this.reset();
   }
 
@@ -45,13 +47,16 @@ export class Game {
     this.lastTime = time;
 
     this.update(dt);
+    this.input.endFrame();
     this.render();
     requestAnimationFrame((t) => this.loop(t));
   }
 
   private update(dt: number) {
+    const startPressed = this.input.enter || this.input.jumpPressed;
+
     if (this.state === GameState.MENU) {
-      if (this.input.enter) {
+      if (startPressed) {
         this.state = GameState.PLAYING;
         this.reset();
       }
@@ -59,7 +64,7 @@ export class Game {
     }
 
     if (this.state === GameState.GAME_OVER || this.state === GameState.WIN) {
-      if (this.input.enter) {
+      if (startPressed) {
         this.state = GameState.MENU;
       }
       return;

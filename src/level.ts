@@ -166,15 +166,6 @@ export function loadLevel(): LevelData {
   return createLevel();
 }
 
-const TILE_COLORS: Record<TileType, string> = {
-  [TileType.EMPTY]: '',
-  [TileType.SOLID]: '#555566',
-  [TileType.SLIDE]: '#886633',
-  [TileType.PIT]: '',
-  [TileType.PLATFORM]: '#667788',
-  [TileType.BUNKER]: '#228833',
-};
-
 export function drawLevel(ctx: CanvasRenderingContext2D, level: LevelData, camX: number, camY: number) {
   const { tileSize, tiles } = level;
   const startCol = Math.floor(camX / tileSize);
@@ -185,34 +176,207 @@ export function drawLevel(ctx: CanvasRenderingContext2D, level: LevelData, camX:
   for (let r = startRow; r <= endRow; r++) {
     for (let c = startCol; c <= endCol; c++) {
       const tile = tiles[r]?.[c] ?? TileType.EMPTY;
-      if (tile !== TileType.EMPTY && tile !== TileType.PIT) {
-        ctx.fillStyle = TILE_COLORS[tile];
-        ctx.fillRect(c * tileSize - camX, r * tileSize - camY, tileSize, tileSize);
+      if (tile === TileType.EMPTY || tile === TileType.PIT) continue;
+
+      const tx = c * tileSize - camX;
+      const ty = r * tileSize - camY;
+
+      if (tile === TileType.SOLID) {
+        // Check if top is exposed (no solid above)
+        const above = tiles[r - 1]?.[c] ?? TileType.EMPTY;
+        const isTop = above === TileType.EMPTY || above === TileType.PIT;
+
+        // Main tile body with gradient
+        const grad = ctx.createLinearGradient(tx, ty, tx, ty + tileSize);
+        if (isTop) {
+          grad.addColorStop(0, '#6a8a6a');
+          grad.addColorStop(0.2, '#4a6a4a');
+          grad.addColorStop(1, '#3a5a3a');
+        } else {
+          grad.addColorStop(0, '#5a5a6a');
+          grad.addColorStop(1, '#3a3a4a');
+        }
+        ctx.fillStyle = grad;
+        roundRect(ctx, tx + 0.5, ty + 0.5, tileSize - 1, tileSize - 1, isTop ? 3 : 1);
+        ctx.fill();
+
+        // Top highlight for grass/surface tiles
+        if (isTop) {
+          ctx.fillStyle = '#7aaa5a';
+          roundRect(ctx, tx + 1, ty, tileSize - 2, 4, 2);
+          ctx.fill();
+        }
+
+        // Subtle edge
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = 0.5;
+        roundRect(ctx, tx + 0.5, ty + 0.5, tileSize - 1, tileSize - 1, isTop ? 3 : 1);
+        ctx.stroke();
+      } else if (tile === TileType.SLIDE) {
+        // Warning-striped barrier
+        ctx.fillStyle = '#996633';
+        ctx.fillRect(tx + 1, ty + 1, tileSize - 2, tileSize - 2);
+        ctx.fillStyle = 'rgba(255,200,0,0.4)';
+        for (let s = 0; s < tileSize; s += 8) {
+          ctx.fillRect(tx + s, ty, 4, tileSize);
+        }
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(tx + 1, ty + 1, tileSize - 2, tileSize - 2);
+      } else if (tile === TileType.BUNKER) {
+        // Bunker door (metallic)
+        const bunkerGrad = ctx.createLinearGradient(tx, ty, tx + tileSize, ty);
+        bunkerGrad.addColorStop(0, '#2a6a3a');
+        bunkerGrad.addColorStop(0.5, '#4aaa5a');
+        bunkerGrad.addColorStop(1, '#2a6a3a');
+        ctx.fillStyle = bunkerGrad;
+        ctx.fillRect(tx, ty, tileSize, tileSize);
+        ctx.strokeStyle = '#1a4a2a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tx + 2, ty + 2, tileSize - 4, tileSize - 4);
+        // Rivets
+        ctx.fillStyle = '#8ac';
+        ctx.beginPath();
+        ctx.arc(tx + 6, ty + 6, 2, 0, Math.PI * 2);
+        ctx.arc(tx + tileSize - 6, ty + 6, 2, 0, Math.PI * 2);
+        ctx.arc(tx + 6, ty + tileSize - 6, 2, 0, Math.PI * 2);
+        ctx.arc(tx + tileSize - 6, ty + tileSize - 6, 2, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
   }
 }
 
-const COLLECTIBLE_COLORS: Record<string, string> = {
-  coin: '#ffdd00',
-  cash: '#55cc55',
-  gold: '#ffaa00',
-  speed: '#ff5500',
-  shield: '#00ccff',
-};
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
 
-export function drawCollectibles(ctx: CanvasRenderingContext2D, level: LevelData, camX: number, camY: number) {
+let collectibleAnimTimer = 0;
+
+export function drawCollectibles(ctx: CanvasRenderingContext2D, level: LevelData, camX: number, camY: number, dt: number) {
+  collectibleAnimTimer += dt;
+
   for (const c of level.collectibles) {
     if (c.collected) continue;
     const sx = c.x - camX;
     const sy = c.y - camY;
     if (sx < -20 || sx > ctx.canvas.width + 20) continue;
-    ctx.fillStyle = COLLECTIBLE_COLORS[c.type] || '#fff';
-    ctx.fillRect(sx, sy, c.w, c.h);
+
+    // Floating animation
+    const floatOffset = Math.sin(collectibleAnimTimer * 3 + c.x * 0.01) * 3;
+    const drawY = sy + floatOffset;
+
+    // Glow
+    const glowAlpha = 0.2 + Math.sin(collectibleAnimTimer * 4 + c.x * 0.02) * 0.1;
+
     if (c.type === 'coin') {
-      ctx.fillStyle = '#aa8800';
-      ctx.font = '8px monospace';
-      ctx.fillText('¢', sx + 2, sy + 10);
+      // Spinning coin
+      const scaleX = Math.cos(collectibleAnimTimer * 5 + c.x * 0.03);
+      ctx.save();
+      ctx.translate(sx + c.w / 2, drawY + c.h / 2);
+      ctx.scale(scaleX, 1);
+      // Glow
+      ctx.fillStyle = `rgba(255,220,0,${glowAlpha})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, 9, 0, Math.PI * 2);
+      ctx.fill();
+      // Coin body
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.arc(0, 0, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#cc9900';
+      ctx.beginPath();
+      ctx.arc(0, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffd700';
+      ctx.font = 'bold 7px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('¢', 0, 3);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    } else if (c.type === 'cash') {
+      ctx.fillStyle = `rgba(80,200,80,${glowAlpha})`;
+      ctx.beginPath();
+      ctx.arc(sx + c.w / 2, drawY + c.h / 2, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#3a8a3a';
+      roundRect(ctx, sx, drawY, c.w, c.h, 2);
+      ctx.fill();
+      ctx.fillStyle = '#5aca5a';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('$', sx + c.w / 2, drawY + 12);
+      ctx.textAlign = 'left';
+    } else if (c.type === 'gold') {
+      ctx.fillStyle = `rgba(255,180,0,${glowAlpha})`;
+      ctx.beginPath();
+      ctx.arc(sx + c.w / 2, drawY + c.h / 2, 11, 0, Math.PI * 2);
+      ctx.fill();
+      // Gold bar shape
+      ctx.fillStyle = '#daa520';
+      ctx.beginPath();
+      ctx.moveTo(sx + 2, drawY + c.h);
+      ctx.lineTo(sx + 4, drawY + 2);
+      ctx.lineTo(sx + c.w - 4, drawY + 2);
+      ctx.lineTo(sx + c.w - 2, drawY + c.h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffcc44';
+      ctx.beginPath();
+      ctx.moveTo(sx + 4, drawY + 2);
+      ctx.lineTo(sx + 6, drawY);
+      ctx.lineTo(sx + c.w - 6, drawY);
+      ctx.lineTo(sx + c.w - 4, drawY + 2);
+      ctx.closePath();
+      ctx.fill();
+    } else if (c.type === 'speed') {
+      ctx.fillStyle = `rgba(255,100,0,${glowAlpha + 0.1})`;
+      ctx.beginPath();
+      ctx.arc(sx + c.w / 2, drawY + c.h / 2, 11, 0, Math.PI * 2);
+      ctx.fill();
+      // Lightning bolt
+      ctx.fillStyle = '#ff6600';
+      ctx.beginPath();
+      ctx.moveTo(sx + 9, drawY);
+      ctx.lineTo(sx + 4, drawY + 8);
+      ctx.lineTo(sx + 8, drawY + 8);
+      ctx.lineTo(sx + 6, drawY + 16);
+      ctx.lineTo(sx + 12, drawY + 6);
+      ctx.lineTo(sx + 9, drawY + 6);
+      ctx.lineTo(sx + 11, drawY);
+      ctx.closePath();
+      ctx.fill();
+    } else if (c.type === 'shield') {
+      ctx.fillStyle = `rgba(0,200,255,${glowAlpha + 0.1})`;
+      ctx.beginPath();
+      ctx.arc(sx + c.w / 2, drawY + c.h / 2, 11, 0, Math.PI * 2);
+      ctx.fill();
+      // Shield shape
+      ctx.fillStyle = '#0099cc';
+      ctx.beginPath();
+      ctx.moveTo(sx + c.w / 2, drawY);
+      ctx.lineTo(sx + c.w - 2, drawY + 4);
+      ctx.lineTo(sx + c.w - 2, drawY + 10);
+      ctx.lineTo(sx + c.w / 2, drawY + c.h);
+      ctx.lineTo(sx + 2, drawY + 10);
+      ctx.lineTo(sx + 2, drawY + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#44ddff';
+      ctx.beginPath();
+      ctx.arc(sx + c.w / 2, drawY + c.h / 2, 3, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 }

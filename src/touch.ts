@@ -21,31 +21,52 @@ export function setupTouchControls(input: Input) {
   const style = document.createElement('style');
   style.textContent = `
     #touch-controls {
-      position: fixed; bottom: 10px; left: 0; right: 0;
+      position: fixed; bottom: 16px; left: 0; right: 0;
       display: flex; justify-content: space-between;
-      padding: 0 16px; pointer-events: none; z-index: 100;
+      padding: 0 20px; pointer-events: none; z-index: 100;
     }
-    .touch-left, .touch-right { display: flex; gap: 12px; pointer-events: auto; }
+    .touch-left, .touch-right { display: flex; gap: 14px; pointer-events: auto; }
     #touch-controls button {
-      width: 64px; height: 64px; border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.5);
-      background: rgba(255,255,255,0.15);
-      color: #fff; font-size: 24px;
+      width: 72px; height: 72px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(4px);
+      color: #fff; font-size: 26px;
       touch-action: manipulation; user-select: none;
       -webkit-user-select: none;
+      transition: transform 0.08s ease, background 0.08s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    #touch-controls button:active { background: rgba(255,255,255,0.4); }
+    #touch-controls button:active {
+      background: rgba(255,255,255,0.35);
+      transform: scale(0.9);
+    }
+    #btn-jump {
+      background: rgba(80,200,120,0.25);
+      border-color: rgba(80,200,120,0.7);
+      width: 80px; height: 80px; font-size: 30px;
+    }
+    #btn-jump:active {
+      background: rgba(80,200,120,0.5);
+    }
   `;
   document.head.appendChild(style);
 
   bind('btn-left', () => input.touchLeft = true, () => input.touchLeft = false);
   bind('btn-right', () => input.touchRight = true, () => input.touchRight = false);
-  bind('btn-jump', () => input.touchJump = true, () => {});
+  bind('btn-jump',
+    () => { input.touchJumpPressed = true; input.touchJumpHeld = true; },
+    () => { input.touchJumpHeld = false; }
+  );
   bind('btn-slide', () => input.touchSlide = true, () => input.touchSlide = false);
 
   // Tap anywhere on canvas also serves as enter (for menu)
   document.getElementById('game')?.addEventListener('touchstart', () => {
-    input.touchJump = true; // doubles as enter/start
+    input.touchJumpPressed = true;
+    input.touchJumpHeld = true;
+  });
+  document.getElementById('game')?.addEventListener('touchend', () => {
+    input.touchJumpHeld = false;
   });
 }
 

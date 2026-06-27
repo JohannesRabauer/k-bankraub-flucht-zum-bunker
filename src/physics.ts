@@ -1,7 +1,12 @@
-export const GRAVITY = 1200;
-export const PLAYER_SPEED = 300;
-export const PLAYER_JUMP = -500;
-export const PLAYER_JUMP_CUT = -200; // velocity set when releasing jump early
+export const GRAVITY = 1100;
+export const GRAVITY_APEX = 600; // reduced gravity near jump apex for "hang time"
+export const APEX_THRESHOLD = 120; // vy range where apex gravity applies
+export const PLAYER_SPEED = 320;
+export const PLAYER_ACCEL = 1800; // smooth acceleration
+export const PLAYER_DECEL = 2400; // smooth deceleration (friction)
+export const PLAYER_AIR_ACCEL = 1200; // air control
+export const PLAYER_JUMP = -540;
+export const PLAYER_JUMP_CUT = -180; // velocity set when releasing jump early
 export const SLIDE_DURATION = 0.5;
 export const TILE_SIZE = 32;
 export const CANVAS_W = 800;

@@ -6,7 +6,8 @@ export class Input {
   // Touch state
   touchLeft = false;
   touchRight = false;
-  touchJump = false;
+  touchJumpPressed = false; // single-fire: true only the frame the button is tapped
+  touchJumpHeld = false;    // held: stays true while finger is on jump button
   touchSlide = false;
 
   constructor() {
@@ -36,11 +37,11 @@ export class Input {
   }
 
   get jumpHeld(): boolean {
-    return this.keys.has('ArrowUp') || this.keys.has('KeyW') || this.keys.has('Space') || this.touchJump;
+    return this.keys.has('ArrowUp') || this.keys.has('KeyW') || this.keys.has('Space') || this.touchJumpHeld;
   }
 
   get jumpPressed(): boolean {
-    return this._jumpBuffered || this.touchJump;
+    return this._jumpBuffered || this.touchJumpPressed;
   }
 
   get slide(): boolean {
@@ -55,6 +56,6 @@ export class Input {
   endFrame() {
     this._jumpBuffered = false;
     this._enterBuffered = false;
-    this.touchJump = false; // touch jump is single-fire per tap
+    this.touchJumpPressed = false; // single-fire per tap
   }
 }
